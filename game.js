@@ -33,12 +33,14 @@ class Player {
     return this._atk;
   }
   heal(value) {
-    let healing = this.maxHp * (value / 100);
+    let healing = Math.floor(this._maxHp * (value / 100));
     // 회복
     if (this._hp + healing < this._maxHp)
       this._hp += healing;
-    else
-      this._hp = this.maxHp;
+    else {
+      healing = this._maxHp - this._hp;
+      this._hp = this._maxHp;
+    }
 
     return healing;
   }
@@ -61,9 +63,9 @@ class Monster {
     return this._atk;
   }
   set status(value) {
-    this._atk = 5 + (value * 5);
-    this._hp = 50 + (value * 25);
-    this._maxHp = 50 + (value * 25);
+    this._atk = 5 + (value * 2);
+    this._hp = 50 + (value * 15);
+    this._maxHp = 50 + (value * 15);
   }
 
   attack(p) {
@@ -84,30 +86,37 @@ let rewards = [{
 {
   name: '힘의 정수',
   code: '_atk',
-  rarity: 2,
+  rarity: 3,
   effect: 12,
   comment: `공격력`
 },
 {
   name: '미약한 활력의 정수',
-  code: '_hp',
+  code: '_maxHp',
   rarity: 5,
   effect: 15,
-  comment: `체력`
+  comment: `최대 체력`
 },
 {
   name: '활력의 정수',
-  code: '_hp',
-  rarity: 5,
+  code: '_maxHp',
+  rarity: 3,
   effect: 25,
-  comment: `체력`
+  comment: `최대 체력`
 },
 {
-  name: '바람의 정수',
+  name: '은신 로브',
   code: '_runaway',
-  rarity: 1,
+  rarity: 3,
   effect: 5,
   comment: `도망 확률`
+},
+{
+  name: '반격의 서',
+  code: '_counter',
+  rarity: 3,
+  effect: 15,
+  comment: `반격 확률`
 }];
 
 let rewardstable = [];
@@ -138,8 +147,10 @@ function displayStatus(stage, player, monster) {
 const battle = async (stage, player, monster) => {
   let logs = [];
   let escape = false;
+  let counter = false;
 
   while (player.hp > 0) {
+    counter = false;
     console.clear();
     displayStatus(stage, player, monster);
 
@@ -164,7 +175,7 @@ const battle = async (stage, player, monster) => {
     }
     if (escape) { // 도망치기      
       escape = false;
-      if (randomRoll(100) > player.runaway) {
+      if (randomRoll(100) < player.runaway) {
         logs = [];
         logs.push(chalk.cyanBright(`적을 따돌리고 휴식을 취합니다.`));
         let healing = player.heal(30);
@@ -188,6 +199,7 @@ const battle = async (stage, player, monster) => {
         logs.push(chalk.redBright(`${dmg}의 피해를 입었습니다.`));
         console.clear();
         displayStatus(stage, player, monster);
+        if (player.hp <= 0) break;
       }
     }
 
@@ -197,7 +209,7 @@ const battle = async (stage, player, monster) => {
 
     console.log(
       chalk.green(
-        `\n1. 공격한다 3. 도망친다(${player.runaway}%). 6. 게임종료`,
+        `\n1. 공격한다 2.반격한다(${player.counter}%) 3. 도망친다(${player.runaway}%). 6. 게임종료`,
       ),
     );
     const choice = readlineSync.question('당신의 선택은? ');
@@ -212,6 +224,17 @@ const battle = async (stage, player, monster) => {
         logs.push(chalk.greenBright(`${dmg}의 피해를 입혔습니다.`));
         break;
       case '2':
+        console.log(chalk.white('반격을 시도합니다.'));
+        await sleep(1000);
+        if (randomRoll(100) < player.counter) {
+          counter = true;
+          logs.push(chalk.cyanBright(`적의 공격을 파훼하고 반격합니다.`));
+          let dmg = player.attack(monster);
+          logs.push(chalk.greenBright(`${dmg}의 피해를 입혔습니다.`));
+        }
+        else {
+          logs.push(chalk.redBright(`적의 공격을 간파하지 못했습니다.`));
+        }
         break;
       case '3':
         console.log(chalk.grey('몬스터를 따돌리는 중 입니다.'));
@@ -224,12 +247,12 @@ const battle = async (stage, player, monster) => {
       default:
         console.log(chalk.red('올바른 선택을 하세요.'));
     }
-    if (monster.hp > 0 && !escape) {
+
+    if (monster.hp > 0 && !escape && !counter) {
       // 전투 지속 - 몬스터 턴
       let dmg = monster.attack(player);
       logs.push(chalk.redBright(`${dmg}의 피해를 입었습니다.`));
     }
-
   }
 };
 
