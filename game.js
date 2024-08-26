@@ -81,6 +81,7 @@ class Monster {
 }
 // 전투 승리보상 목록
 // 정해진 형태 내에서 얼마든지 추가 가능
+// 객체 속성 - 이름, 적용 스탯, 가중치, 스탯 상승량, 상승 스탯 이름
 let rewards = [{
   name: '미약한 힘의 정수',
   code: '_atk',
@@ -159,7 +160,7 @@ const battle = async (stage, player, monster) => {
     displayStatus(stage, player, monster);
 
     if (monster.hp <= 0) { // 전투 승리
-      logs = logs.slice(logs.length - 1); // 마지막 로그(흐름 상 플레이어가 마지막으로 준 피해)
+      logs = logs.slice(logs.length - 1); // 마지막 로그(흐름 상 플레이어가 마지막으로 입힌 피해)
       logs.push(chalk.cyanBright(`적을 쓰러뜨렸습니다!`));
       reward(player, logs);
       let healing = player.heal(20);
@@ -304,8 +305,7 @@ export async function startGame() {
     stage++;
     if(stage > 10)
       GameClear();
-  }
-  
+  }  
 }
 
 async function GameOver() {
