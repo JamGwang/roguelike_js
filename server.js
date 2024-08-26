@@ -10,7 +10,7 @@ function displayLobby() {
     // 타이틀 텍스트
     console.log(
         chalk.cyan(
-            figlet.textSync('RL- Javascript', {
+            figlet.textSync('Rogue-Like', {
                 font: 'Standard',
                 horizontalLayout: 'default',
                 verticalLayout: 'default'
@@ -66,7 +66,6 @@ function handleUserInput() {
             console.log(chalk.red('게임을 종료합니다.'));
             // 게임 종료 로직을 구현
             process.exit(0); // 게임 종료
-            break;
         default:
             console.log(chalk.red('올바른 선택을 하세요.'));
             handleUserInput(); // 유효하지 않은 입력일 경우 다시 입력 받음
@@ -74,7 +73,7 @@ function handleUserInput() {
 }
 
 // 게임 시작 함수
-function start() {
+export function start() {
     displayLobby();
     handleUserInput();
 }
