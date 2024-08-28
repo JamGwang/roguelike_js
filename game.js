@@ -1,10 +1,10 @@
 import chalk from 'chalk';
 import figlet from 'figlet';
 import readlineSync from 'readline-sync';
-import {start} from "./server.js";
+import { start } from "./server.js";
 
 //원하는 시간(ms) 만큼 지연시키기 위한 promise반환 함수
-const sleep = delay => new Promise(resolve => setTimeout(resolve, delay)); 
+const sleep = delay => new Promise(resolve => setTimeout(resolve, delay));
 class Player {
   constructor() {
     this._maxHp = 125;
@@ -30,9 +30,8 @@ class Player {
     return this._runaway;
   }
 
-  attack(mob) {
+  attack() {
     // 플레이어의 공격
-    mob._hp -= this._atk;
     return this._atk;
   }
   heal(value) {
@@ -67,14 +66,13 @@ class Monster {
   }
   // 스테이지 증가에 비례한 스텟 상승, 랜덤 확률로 높은 스탯의 몬스터 생성
   set status(value) {
-    this._atk = 5 + (randomRoll(100) <= 30 ? value+2 : value);    
-    this._maxHp = 50 + (randomRoll(100) <= 55 ? value*17 : value*15);
+    this._atk = 5 + (randomRoll(100) <= 30 ? value + 2 : value);
+    this._maxHp = 50 + (randomRoll(100) <= 55 ? value * 17 : value * 15);
     this._hp = this._maxHp;
   }
 
-  attack(p) {
-    // 몬스터의 공격
-    p._hp -= this.atk;
+  attack() {
+    // 몬스터의 공격    
     return this.atk;
   }
 
@@ -136,7 +134,7 @@ function setReward() {
 }
 
 function displayStatus(stage, player, monster) {
-  console.log(chalk.magentaBright(`\n==== Current Status ======================`));  
+  console.log(chalk.magentaBright(`\n==== Current Status ======================`));
   console.log(
     chalk.cyanBright(`| Stage: ${stage} `) +
     chalk.blueBright(
@@ -153,7 +151,7 @@ const battle = async (stage, player, monster) => {
   let logs = [];
   let escape = false;
   let counter = false;
-
+  let turn = 1;
   while (player.hp > 0) {
     counter = false;
     console.clear();
@@ -177,35 +175,6 @@ const battle = async (stage, player, monster) => {
       } while (false)
       break;
     }
-    if (escape) { // 도망치기에 성공 시, 체력 회복 후 다음 스테이지. 실패 시 피해입음
-      escape = false;
-      if (randomRoll(100) < player.runaway) {
-        logs = [];
-        logs.push(chalk.cyanBright(`적을 따돌리고 휴식을 취합니다.`));
-        let healing = player.heal(30);
-        logs.push(chalk.greenBright(`체력을 ${healing}회복 합니다.`));
-        logs.push(chalk.gray(`다음 스테이지로 이동하려면 아무거나 입력하세요.`));
-        logs.forEach((log) => console.log(log));
-        //로그 출력 후 아무거나 입력받고 전투 종료
-        do {
-          const clicktonext = readlineSync.question();
-          switch (clicktonext) {
-            default:
-              break;
-          }
-        } while (false)
-        break;
-      }
-      else {
-        logs = [];
-        logs.push(chalk.redBright(`적을 따돌리는 데 실패했습니다!`));
-        let dmg = monster.attack(player);
-        logs.push(chalk.redBright(`${dmg}의 피해를 입었습니다.`));
-        console.clear();
-        displayStatus(stage, player, monster);
-        if (player.hp <= 0) break;
-      }
-    }
 
     if (logs.length > 8) //로그 많으면 정리
       logs = logs.slice((logs.length - 8));
@@ -213,7 +182,7 @@ const battle = async (stage, player, monster) => {
 
     console.log(
       chalk.green(
-        `\n1. 공격한다 2.반격한다(${player.counter}%) 3. 도망친다(${player.runaway}%). 6. 게임종료`,
+        `\n1. 공격한다 2. 반격한다(${player.counter}%) 3. 도망친다(${player.runaway}%) 6. 게임종료`,
       ),
     );
     const choice = readlineSync.question('당신의 선택은? ');
@@ -221,26 +190,50 @@ const battle = async (stage, player, monster) => {
     // 행동 분기
     switch (choice) {
       case '1': // 일반 공격
-        let dmg = player.attack(monster);
-        logs.push(chalk.greenBright(`${dmg}의 피해를 입혔습니다.`));
+        let dmg = player.attack();
+        monster._hp -= dmg;
+        logs.push(chalk.greenBright(`[${turn}] ${dmg}의 피해를 입혔습니다.`));
         break;
       case '2': // 랜덤 조건 충족시 피해를 입지않고 공격, 실패시 플레이어만 피해입음
         console.log(chalk.white('반격을 시도합니다.'));
         await sleep(1000);
         if (randomRoll(100) < player.counter) {
           counter = true;
-          logs.push(chalk.cyanBright(`적의 공격을 파훼하고 반격합니다.`));
-          let dmg = player.attack(monster);
-          logs.push(chalk.greenBright(`${dmg}의 피해를 입혔습니다.`));
+          logs.push(chalk.cyanBright(`[${turn}] 적의 공격을 파훼하고 반격합니다.`));
+          let dmg = player.attack();
+          monster._hp -= dmg;
+          logs.push(chalk.greenBright(` * ${dmg}의 피해를 입혔습니다.`));
         }
         else {
-          logs.push(chalk.redBright(`적의 공격을 간파하지 못했습니다.`));
+          logs.push(chalk.redBright(`[${turn}] 적의 공격을 간파하지 못했습니다.`));
         }
         break;
       case '3': // 도망 시도
-        console.log(chalk.grey('몬스터를 따돌리는 중 입니다.'));
+        console.log(chalk.grey(`몬스터를 따돌리는 중 입니다.`));
         await sleep(1000);
-        escape = true;
+        if (randomRoll(100) < player.runaway) { // 도망치기에 성공 시, 체력 회복 후 다음 스테이지. 실패 시 피해입음
+          console.clear();
+          displayStatus(stage, player, monster);
+          logs = [];
+          logs.push(chalk.cyanBright(`[${turn}] 적을 따돌리고 휴식을 취합니다.`));
+          let healing = player.heal(30);
+          logs.push(chalk.greenBright(` * 체력을 ${healing}회복 합니다.`));
+          logs.push(chalk.gray(`다음 스테이지로 이동하려면 아무거나 입력하세요.`));
+          logs.forEach((log) => console.log(log));
+          //로그 출력 후 아무거나 입력받고 전투 종료
+          do {
+            const clicktonext = readlineSync.question();
+            switch (clicktonext) {
+              default:
+                break;
+            }
+          } while (false)
+          return;
+        }
+        else {
+          logs = [];
+          logs.push(chalk.redBright(`[${turn}] 적을 따돌리는 데 실패했습니다!`));
+        }
         break;
       case '6':
         console.log(chalk.red('게임을 종료합니다.'));
@@ -251,14 +244,16 @@ const battle = async (stage, player, monster) => {
 
     if (monster.hp > 0 && !escape && !counter) {
       // 전투 지속 - 몬스터 턴
-      let dmg = monster.attack(player);
-      logs.push(chalk.redBright(`${dmg}의 피해를 입었습니다.`));
+      let dmg = monster.attack();
+      player._hp -= dmg;
+      logs.push(chalk.redBright(`[${turn}] ${dmg}의 피해를 입었습니다.`));
     }
-  }  
+    turn++;
+  }
 };
 
 // 보상
-function reward(player, logs) {  
+function reward(player, logs) {
   // 전체 보상 배열 길이 * Math.random() , 소수점 버림 => 보상 인덱스 번호
   let dice = Math.floor(randomRoll(rewardstable.length - 1));
   if (dice > rewardstable.length - 1) {
@@ -271,6 +266,7 @@ function reward(player, logs) {
     let code = rewardstable[dice].code;
     let eff = rewardstable[dice].effect;
     let comment = rewardstable[dice].comment;
+    let rarity = rewardstable[dice].rarity;
 
     if (player[code] === undefined) {
       console.log(chalk.red('보상 능력치 코드 오류'));
@@ -278,7 +274,8 @@ function reward(player, logs) {
     }
     else {
       player[code] += eff;
-      logs.push(chalk.cyanBright(`${name}(을)를 얻었습니다!`));
+      let star = chalk.magentaBright('*'.repeat(6 - rarity));
+      logs.push(chalk.cyanBright(star + ` ${name}(을)를 얻었습니다!`));
       logs.push(chalk.cyanBright(`${comment}(이)가 ${eff}증가합니다!`));
     }
   }
@@ -296,16 +293,16 @@ export async function startGame() {
   while (stage <= 10) {
     const monster = new Monster(stage);
     monster.status = stage;
-    await battle(stage, player, monster);    
+    await battle(stage, player, monster);
     // 스테이지 클리어 및 게임 종료 조건
-    if(player.hp <= 0){
+    if (player.hp <= 0) {
       GameOver();
       break;
     }
     stage++;
-    if(stage > 10)
+    if (stage > 10)
       GameClear();
-  }  
+  }
 }
 
 async function GameOver() {
@@ -334,7 +331,7 @@ async function GameOver() {
 async function GameClear() {
   console.clear();
   console.log(
-    chalk.blueBright(
+    chalk.yellowBright(
       figlet.textSync('GAME CLEAR', {
         font: 'Standard',
         horizontalLayout: 'default',
